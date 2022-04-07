@@ -1,0 +1,141 @@
+//készítette Tarjányi Tamás, email: tarxtamas@gmail.com
+
+class reszecske{                             //létrehozom a részecskék számára a struktúrát  
+  float x, y, vx, vy, ax, ay, fix_x, fix_y;  //koordináta r[x(t), y(t)], sebesség v[vx(t), vy(t)], gyorsulás a[ax(t), ay(t)], fix x-y ponthoz vannak kötve az egyes atomok
+  reszecske(){
+  vx = 0;
+  vy = 0;                                    //kezdeti sebesség értékek 0
+  ax = 0;                                    //minden részecske kezdeti gyorsulása 0
+  ay = 0;
+  }
+}
+    
+reszecske test[][];      //részecske class léterehozása a testnek
+float m = 15;            //tömeg
+float D = 0.8;           //rugó állandó
+int atmero = 15;         //részecskék mérete
+int oszlop = 8;          //oszlopok száma
+int sor = 10;            //sorok száma
+float deltat = 0.01;     //időlépés
+int lepes = 120;         //ennyi lépés történik kirajzolásonként
+float kin = 0;           //kinetikus energia
+float pot = 0;           //potenciális energia
+int N = 150;
+float kin_func[] = new float[N+1];
+float sigma = 150;       //lennard-jones potenciál távolság
+float epsilon = 2.7;     //lennard-jones potenciál gödör
+float skala = 3000.0;      //skálázás, mennyire legyen erős a kölcsönhatás
+
+void setup(){                                //főeljárás, létrehozom a programot
+frameRate(30);                               //másodpercenként ennyi képkockát rajzolok majd ki
+size(1500, 900);                             //megmondom mekkora legyen a képernyő
+test = new reszecske[oszlop][sor];
+for(int j = 0; j < sor; j++){                //kezdeti feltételek
+ for(int i = 0; i < oszlop; i++){
+  test[i][j] = new reszecske();
+  test[i][j].x = 300 + i * 50;
+  test[i][j].fix_x = 300 + i * 50;            //lerakom az egyes atomokat 50 pixelenként, és a fix pozíciójuk is itt lesz
+  test[i][j].y = 300 + j * 50;                //a sorok között is a távolság 50 pixel
+  test[i][j].fix_y = 300 + j * 50;
+  test[i][j].vx = random(-0.3, 0.3); test[i][j].vy = random(-0.3, 0.3);
+  }
+ }
+}
+
+float golyo_tomeg = 150;
+float golyo_x = 1500;                         //golyó pozíciója, sebessége
+float golyo_y = 600;
+float golyo_vx= -0.62;
+float golyo_vy= -0.02;
+float golyo_ax = 0;
+float golyo_ay = 0;
+
+void draw(){                                 //rajzolás, ciklikusan kirajzol másodpercenként adott képet amíg nincs stopLoop()
+ textSize(12);                               //szöveg mérete
+ background(255);                            //háttér színe
+ stroke(0);                                  //vonalak színe
+ fill(255);
+ kin = 0;
+ pot = 0;
+
+//számolás
+for(int k = 0; k < lepes; k++){
+for(int j = 0; j < sor; j++){             //j aktuális sor
+ for(int i = 0; i < oszlop; i++){         //i aktuális oszlop   
+    //középső rész, szélek nélkül
+    test[i][j].ax = szamol(test[i][j].x, test[i][j].fix_x);
+    test[i][j].ay = szamol(test[i][j].y, test[i][j].fix_y);
+    
+    if(i >= 0 && j >= 0){test[i][j].ax = szamol(test[i][j].x, test[i][j].fix_x); test[i][j].ax+=skala*(-test[i][j].x + golyo_x)*lennard(test[i][j].x, test[i][j].y, golyo_x, golyo_y)/(m*dist(test[i][j].x,test[i][j].y,golyo_x,golyo_y));} 
+    if(i >= 0 && j >= 0){test[i][j].ay = szamol(test[i][j].y, test[i][j].fix_y); test[i][j].ay+=skala*(-test[i][j].y + golyo_y)*lennard(test[i][j].x, test[i][j].y, golyo_x, golyo_y)/(m*dist(test[i][j].x,test[i][j].y,golyo_x,golyo_y));}
+    
+    if(i >= 0 && j >= 0){golyo_ax+=(test[i][j].x - golyo_x)*lennard(test[i][j].x, test[i][j].y, golyo_x, golyo_y)/(golyo_tomeg*m*dist(test[i][j].x,test[i][j].y,golyo_x,golyo_y));}
+    if(i >= 0 && j >= 0){golyo_ay+=(test[i][j].y - golyo_y)*lennard(test[i][j].x, test[i][j].y, golyo_x, golyo_y)/(golyo_tomeg*m*dist(test[i][j].x,test[i][j].y,golyo_x,golyo_y));}
+    
+  golyo_vx+=deltat * golyo_ax;
+  golyo_vy+=deltat * golyo_ay;
+  golyo_x+= deltat * golyo_vx;
+  golyo_y+= deltat * golyo_vy;
+  test[i][j].vx = 0.9999*leptetes(test[i][j].vx, test[i][j].ax);
+  test[i][j].vy = 0.9999*leptetes(test[i][j].vy, test[i][j].ay);
+  test[i][j].x = leptetes(test[i][j].x, test[i][j].vx);
+  test[i][j].y = leptetes(test[i][j].y, test[i][j].vy);
+  }
+ }
+}
+
+//rajzolás
+for(int j = 0; j < sor; j++){             //j aktuális sor
+ for(int i = 0; i < oszlop; i++){         //i aktuális oszlop
+  rajzolas(test[i][j].x, test[i][j].y);
+  if(i > 0){line(test[i - 1][j].x + atmero/2, test[i - 1][j].y, test[i][j].x - atmero/2, test[i][j].y);}
+  if(j > 0){line(test[i][j-1].x, test[i][j-1].y + atmero/2, test[i][j].x, test[i][j].y - atmero/2);}
+  kin+=0.5*m*(test[i][j].vx*test[i][j].vx+test[i][j].vy*test[i][j].vy);
+  //pot+=m*deltat*(abs(test[i][j].ax * test[i][j].vx) + abs(test[i][j].ay * test[i][j].vy));        //nem biztos hogy jó, dU=szumma(F*v*deltat)
+  test[i][j].ax = 0;
+  test[i][j].ay = 0;
+  }
+ }
+
+fill(0);
+ellipse(golyo_x, golyo_y, 150, 150);
+text("aktuális teljes kinetikus energa: ", 750, 600);
+text("Teljes kinetikus energia az időfüggvényében: ", 750, 640);
+text("Készítette Tarjányi Tamás 2022", 300, 850);
+text("még nagyobb rugó állandó esete", 700, 400);
+text("szélek fixek", 300, 780);
+text(kin, 1000, 600);
+//text(pot, 1000, 100);
+kin_func[0]=kin;
+for(int l=0; l<N; l++){
+ kin_func[N-l]=kin_func[N-l-1]; 
+}
+
+  for(int p=0; p <= N; p++){
+    ellipse(1200 - p * 3, 800 - 0.1*kin_func[p], 4, 4);  
+  }
+  line(750, 800, 1200, 800);
+  line(750, 800, 750, 650);
+textSize(24);
+text("Rugalmas test rugó modellje kölcsönhat egy mozgó részecskével (negatív) Lennard-Jones potenciállal", 100, 250);
+}
+
+void rajzolas(float x, float y){              //15, 15 paraméterű ellipszisek (kör) lesz a proton 
+ ellipse(x, y, atmero, atmero);
+}
+
+float szamol(float koord, float fix){
+  float gyorsulas = - D * (koord - fix) / m;          //rúgó egyenlet F = ma = -Dx
+  return gyorsulas;
+}
+
+float leptetes(float r, float v){
+  r+= v * deltat;
+  return r;  
+}
+
+float lennard(float koord1x, float koord2x, float koord1y, float koord2y){
+  float tavolsag = dist(koord1x, koord1y, koord2x, koord2y);
+  float LJ=2 * epsilon *(2 * pow((sigma / tavolsag), 12) - pow((sigma / tavolsag), 6))/ (tavolsag);
+  return LJ;
+}
